@@ -88,6 +88,9 @@ and the reference describe what was built; these say why.
 * [Dynamic externs](design/dynamic_externs.md): `extern "lib" { ... }`,
   an extern fn bound from a shared library by name at program start; a
   proposal.
+* [Suspend functions](design/suspend_fn.md): Kotlin-style coroutines
+  lowered to fixed-size state enums under the recursion rule; a rough
+  proposal.
 
 ## Getting the compiler
 

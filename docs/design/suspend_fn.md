@@ -310,24 +310,30 @@ it looks. The block's code is known at compile time and is part of the
 type, so only its state is stored, and the outlives rule already stops
 the coroutine from outliving the locals the block uses.
 
-## 6. Performance: what to expect
+## 6. Performance
 
-This has not been measured. A `co_resume` is a direct call and a `switch`,
-plus a few loads and stores of state, so it should cost a few nanoseconds.
-Sending a message to a worker and receiving its reply goes through
-`gs_qput`, which takes a mutex, allocates a node, and wakes a condition
-variable. Each direction typically takes microseconds when the receiver
-has to be woken. A worker also reserves its own data stacks and an OS
-thread. A `patrol` coroutine is a few hundred bytes, mostly its `Path`.
+[`bench/suspend_fn`](../../bench/suspend_fn/README.md) times a simpler form
+of the patrol (no pathfinder) written four ways. The coroutines in it are
+lowered by hand, because the compiler has no `suspend_fn`. On an Apple M3
+Pro, with 10,000 guards for 10,000 frames:
 
-A useful benchmark would compare two ping-pong loops that each pass a
-counter back and forth a million times. One would use a `thread_fn` with
-`qput`/`qget`, and the other would use a state machine written by hand in
-the shape of section 3, which is what a `suspend_fn` would compile to. The
-same pair, run with 10,000 concurrent "actors", would also show memory use.
-The two are not interchangeable: threads run in parallel and coroutines
-don't. The benchmark would show what it costs to use a thread for work
-that only needs to wait.
+| version | per guard per frame | state per guard |
+|---|---:|---:|
+| hand-written state machine | 0.88 ns | 22 bytes |
+| coroutine, nested lowering (section 3) | 1.28 ns | 48 bytes |
+| coroutine, nested calls merged into one program counter | 0.97 ns | 24 bytes |
+
+With a single guard, a `thread_fn` patrol that waits for each frame with a
+`qput` and a blocking `qget` takes 3,450 ns per frame, against 1.8 ns for
+the coroutine. 10,000 thread-based guards can't run at all, because macOS
+allows 4,096 threads per process.
+
+So a coroutine costs about what the state machine it replaces costs, if
+the compiler merges inlined suspend calls into one program counter. The
+nested lowering is 45% slower. Threads and coroutines are not
+interchangeable, because threads run in parallel and coroutines don't.
+What the numbers show is the cost of using a thread for work that only
+needs to wait.
 
 ## 7. Open questions
 

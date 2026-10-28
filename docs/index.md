@@ -88,6 +88,9 @@ and the reference describe what was built; these say why.
 * [Dynamic externs](design/dynamic_externs.md): `extern "lib" { ... }`,
   an extern fn bound from a shared library by name at program start; a
   proposal.
+* [Typed suspension points](design/yield_op.md): `yield_op`, a request and
+  reply type per kind of coroutine suspension instead of one yield and one
+  resume type per coroutine; a rough proposal.
 
 ## Getting the compiler
 

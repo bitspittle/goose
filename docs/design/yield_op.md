@@ -528,6 +528,22 @@ it cheap to write: a helper deep in the call tree that sees
   operations bare (`find_path f =>`) or as `F.ops.find_path`.
 * Composing resumers (6): how a library scheduler and an application
   divide one frame's operations, with exhaustiveness checked across both.
+* Concurrent children. Kotlin's
+  `val a = async { fetchA() }; val b = async { fetchB() }; a.await() + b.await()`
+  overlaps two waits inside one coroutine. When each child is a single
+  operation, this needs nothing new: split it into a start and a wait
+  (`start_fetch(url) -> Ticket`, `await_fetch(t: Ticket) -> Response`),
+  start both, then wait for each, and the driver keeps both in flight, as
+  `io_uring` does. When each child is a multi-step coroutine, the parent
+  can hold both frames as locals but can suspend on only one operation at
+  a time, so forwarding one child's request stalls the other. Two ways
+  out: a join operation the driver understands, whose request carries
+  both children's pending requests (which needs generic operations), or a
+  `spawn` request that hands the children to the driver, which can adopt
+  only frame types it knows, through an enum of frame types. Kotlin's
+  dispatcher accepts any coroutine because it is a universal runtime;
+  Goose has none by design, so structured concurrency over multi-step
+  children is the part of this design with the least settled answer.
 * Whether a bare `yield;` should stay as sugar for a predeclared
   `next`-style operation, so that the simplest game coroutine does not
   need a declaration.
